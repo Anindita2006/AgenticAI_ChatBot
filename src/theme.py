@@ -235,17 +235,29 @@ hr, [data-testid="stDivider"] {
 
 /* ---------------------------------------------------------- chat bubbles */
 [data-testid="stChatMessage"] {
+  display: flex;
   border-radius: 16px;
   border: 1px solid var(--gh-border);
-  padding: 0.35rem 0.15rem;
+  padding: 0.5rem 0.9rem;
   margin-bottom: 0.55rem;
+  max-width: 78%;
   animation: gh-fade-up 0.35s ease both;
 }
+/* User on the right, avatar outermost; assistant on the left. */
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
   background: linear-gradient(135deg, var(--gh-glow-b), transparent);
+  margin-left: auto;
+  margin-right: 0;
+  flex-direction: row-reverse;
+  text-align: right;
 }
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {
   background: linear-gradient(135deg, var(--gh-glow-a), transparent);
+  margin-right: auto;
+  margin-left: 0;
+}
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) [data-testid="stChatMessageContent"] {
+  text-align: right;
 }
 [data-testid="stChatInput"] {
   border-radius: 16px !important;

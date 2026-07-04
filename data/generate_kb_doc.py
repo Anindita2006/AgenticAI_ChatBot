@@ -2,10 +2,11 @@
 Builds data/bvrith_college_info.docx, the grounding document for the RAG chatbot.
 
 Content is transcribed from bvrithyderabad.edu.in (About, Admissions, Fee Details,
-Placements, Training & Placement Cell, CSE Department pages) plus a small number of
-facts corroborated via search (library/hostel/transport figures, contact details).
+Placements, Training & Placement Cell, and each department's Faculty / About-HOD
+pages — CSE, ECE, EEE, IT, CSE AI&ML) plus a small number of facts corroborated
+via search (library/hostel/transport figures, contact details).
 Where the source pages did not publish a figure (e.g. hostel fees, scholarships,
-per-department faculty counts outside CSE), the document says so explicitly instead
+individual assistant-professor profiles), the document says so explicitly instead
 of inventing a number — the chatbot must be able to refuse on these gracefully.
 
 Each of the 8 sections is placed on its own page (explicit page break) so that the
@@ -205,11 +206,23 @@ SECTIONS = [
             ("- Faculty strength: 51 total — 5 Professors, 4 Associate Professors, 42 Assistant Professors — plus adjunct faculty drawn from industry and academia.", True),
             ("- Research areas: Machine Learning and Artificial Intelligence, computer networks, data mining, image processing, parallel computing, software engineering, cloud computing, soft computing, blockchain, deep learning, natural language processing, cyber security, and data analytics.", True),
             ("- The CSE undergraduate programme has been NBA-accredited since 2018-19, extended through 2021-22.", True),
-            ("Named HODs and detailed faculty qualifications for ECE, EEE, IT, and "
-             "CSE AI&ML departments are not included in this document. If asked for a "
-             "specific faculty member's profile outside CSE or the Principal, the "
-             "chatbot should direct the user to the relevant department page on the "
-             "official website or the admissions office rather than guessing."),
+            ("Department of Electronics and Communication Engineering:"),
+            ("- Head of Department: Dr. Nagesh Deevi, Associate Professor & HoD, Dept. of ECE. Ph.D in RF-VLSI (NIT Warangal); IEEE member; research interests include device modeling, RF communications, on-chip component design, and semiconductor packaging.", True),
+            ("- Faculty strength: 27 total — 5 Professors, 7 Associate Professors, 15 Assistant Professors.", True),
+            ("Department of Electrical and Electronics Engineering:"),
+            ("- Head of Department: Dr. M. Sharanya, Professor & HoD, Dept. of EEE. B.Tech in EEE (JNTUH, 2001); M.Tech in Power Electronics and Electrical Drives (JNTUH, 2007); Ph.D (JNTUH, 2020); research interests include Power Electronics, Power Quality, Renewable Energy, and Electric Vehicles.", True),
+            ("- Faculty strength: 16 total — 2 Professors, 5 Associate Professors, 9 Assistant Professors.", True),
+            ("Department of Information Technology:"),
+            ("- Head of Department: Dr. K. Srikar Goud, Assistant Professor & I/C HoD (In-Charge), Dept. of IT.", True),
+            ("- Faculty strength: 9 total — 1 Associate Professor (Dr. K. Bharathi) and 8 Assistant Professors (including Mr. A. Rajashekar Reddy, Ms. K. Kavitha, Ms. A. Aruna Jyothi, Ms. N. Sandhya, Ms. Danthuluri Mani Sri Madhuri, Ms. A. S. S. M. Pravallika, and Ms. T. Sukanya).", True),
+            ("Department of CSE — Artificial Intelligence and Machine Learning (CSE AI&ML / CSM):"),
+            ("- Head of Department: Dr. Venkata Raja Sekhar Reddy N, Professor & HoD, Dept. of CSE (AI&ML). Contact: hod.aiml@bvrithyderabad.edu.in.", True),
+            ("- Faculty strength: 15 total — 2 Professors, 0 Associate Professors, 13 Assistant Professors.", True),
+            ("Faculty rosters and qualifications beyond what is listed above (e.g. "
+             "individual assistant professor profiles) are published on each "
+             "department's official faculty page at bvrithyderabad.edu.in; the "
+             "chatbot should direct the user there or to the admissions office "
+             "rather than guessing if asked for detail not covered in this document."),
         ],
     },
     {
