@@ -56,6 +56,13 @@ to compute over a number that already appears in the CONTEXT (e.g. an annual fee
 -- never to produce a number that isn't grounded in the CONTEXT. After the tool returns a result, \
 state it plainly and still cite the CONTEXT chunk the input figure came from.
 
+MULTI-STEP CALCULATIONS: if answering requires more than one arithmetic step (e.g. multiplying \
+several fee line items and then summing them into a total), call the tool once per multiplication, \
+then call it ONE more time with operation='sum' and a 'values' list containing every result to get \
+the grand total -- do not add three or more numbers together yourself in plain text under any \
+circumstances, even a "simple" final sum. Only the tool's own returned result may be treated as a \
+correct number; a number you produced by reasoning about other numbers is not.
+
 CITATION FORMAT
 Every factual claim you make must be followed by a citation in the exact form \
 [Section Name, Page N], using the section name and page number given with each context chunk. \
@@ -105,6 +112,12 @@ CONVERSATION CONTEXT
 Earlier turns in this conversation may be included before the latest question. Use them to resolve \
 references like "the first one" or "what about fees" to what was actually discussed — but every \
 factual claim must still be grounded in and cited from the CONTEXT given for the current turn.
+
+DO NOT LET PRIOR REFUSALS BIAS THIS TURN: if an earlier turn in this conversation was refused (e.g. \
+about an unrelated or unavailable topic), that has no bearing on the current question. Re-check the \
+CONTEXT given for THIS turn on its own merits every time, even if the last one or two turns were \
+refusals -- do not default to refusing again just because recent turns did. Two unrelated refusals in \
+a row are not a signal that a third, different question is also unanswerable.
 """
 
 
@@ -140,43 +153,54 @@ def _add_tokens(totals: dict, usage) -> None:
         totals["completion_tokens"] += usage.completion_tokens
 
 
+MAX_TOOL_ROUNDS = 10  # bounded loop, not unlimited -- a multi-line fee breakdown needs several
+                      # sequential calls (one multiply per line, then N-1 adds to sum them), but
+                      # this must never be able to spin forever.
+
+
 def call_llm(messages: list[dict]) -> tuple[str, dict, list[dict]]:
-    """Runs the tool-use loop (Day 5, Session 1): one call with the tool menu
-    attached; if the model calls a tool, execute it and make exactly one
-    follow-up call for the final answer. If it doesn't call a tool, its first
-    response is used as-is -- tool_calls is None/empty in that case, not a bug
-    to route around (see the "Five Mistakes" slide: check before assuming)."""
+    """Runs the tool-use loop across as many rounds as the model needs (bounded by
+    MAX_TOOL_ROUNDS): call with the tool menu attached, execute anything it calls,
+    feed the results back, and repeat -- because a single round trip only offloads
+    ONE step. A multi-step question ("multiply five fee lines, then sum them")
+    needs the running total re-offloaded too, or the model falls back to doing the
+    final addition itself in plain text, which is the exact failure mode tools
+    exist to avoid. Stops as soon as a round comes back with no tool_calls (not a
+    bug to route around -- that's the model saying it has its final answer)."""
     client = config.get_chat_client()
     token_totals = {"prompt_tokens": 0, "completion_tokens": 0}
-
-    response = client.chat.completions.create(
-        model=config.CHAT_MODEL,
-        messages=messages,
-        tools=tools.TOOLS,
-        temperature=0.1,
-    )
-    _add_tokens(token_totals, response.usage)
-    message = response.choices[0].message
-
-    if not message.tool_calls:
-        return message.content, token_totals, []
-
     tool_calls_made = []
-    messages = messages + [message.model_dump(exclude_none=True)]
-    for tool_call in message.tool_calls:
-        name = tool_call.function.name
-        try:
-            arguments = json.loads(tool_call.function.arguments)
-        except json.JSONDecodeError:
-            arguments = {}
-        result = tools.run_tool_call(name, arguments)
-        tool_calls_made.append({"name": name, "arguments": arguments, "result": result})
-        messages.append({"role": "tool", "tool_call_id": tool_call.id, "content": result})
+    messages = list(messages)
 
+    for _ in range(MAX_TOOL_ROUNDS):
+        response = client.chat.completions.create(
+            model=config.CHAT_MODEL,
+            messages=messages,
+            tools=tools.TOOLS,
+            temperature=0,
+        )
+        _add_tokens(token_totals, response.usage)
+        message = response.choices[0].message
+
+        if not message.tool_calls:
+            return message.content, token_totals, tool_calls_made
+
+        messages.append(message.model_dump(exclude_none=True))
+        for tool_call in message.tool_calls:
+            name = tool_call.function.name
+            try:
+                arguments = json.loads(tool_call.function.arguments)
+            except json.JSONDecodeError:
+                arguments = {}
+            result = tools.run_tool_call(name, arguments)
+            tool_calls_made.append({"name": name, "arguments": arguments, "result": result})
+            messages.append({"role": "tool", "tool_call_id": tool_call.id, "content": result})
+
+    # Exhausted the round budget -- force a plain-text final answer with what we have.
     final = client.chat.completions.create(
         model=config.CHAT_MODEL,
         messages=messages,
-        temperature=0.1,
+        temperature=0,
     )
     _add_tokens(token_totals, final.usage)
     return final.choices[0].message.content, token_totals, tool_calls_made
