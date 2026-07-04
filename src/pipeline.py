@@ -37,10 +37,11 @@ def answer_question(
             "latency": time.perf_counter() - start,
             "tokens_in": None,
             "tokens_out": None,
+            "tool_calls": [],
         }
 
     chunks = retrieve(query, top_k=top_k, section=section)
-    answer, tokens = generate_answer(query, chunks, history=trim_history(history or []))
+    answer, tokens, tool_calls = generate_answer(query, chunks, history=trim_history(history or []))
 
     return {
         "query": query,
@@ -50,6 +51,7 @@ def answer_question(
         "latency": time.perf_counter() - start,
         "tokens_in": tokens.get("prompt_tokens"),
         "tokens_out": tokens.get("completion_tokens"),
+        "tool_calls": tool_calls,
     }
 
 

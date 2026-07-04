@@ -1,15 +1,18 @@
 """
 Builds data/bvrith_college_info.docx, the grounding document for the RAG chatbot.
 
-Content is transcribed from bvrithyderabad.edu.in (About, Admissions, Fee Details,
-Placements, Training & Placement Cell, and each department's Faculty / About-HOD
-pages — CSE, ECE, EEE, IT, CSE AI&ML) plus a small number of facts corroborated
-via search (library/hostel/transport figures, contact details).
-Where the source pages did not publish a figure (e.g. hostel fees, scholarships,
-individual assistant-professor profiles), the document says so explicitly instead
-of inventing a number — the chatbot must be able to refuse on these gracefully.
+Content (Sections 1-8) is transcribed from bvrithyderabad.edu.in (About, Admissions,
+Fee Details, Placements, Training & Placement Cell, and each department's Faculty /
+About-HOD pages — CSE, ECE, EEE, IT, CSE AI&ML) plus a small number of facts
+corroborated via search (library/hostel/transport figures, contact details).
+Sections 9-10 (Scholarships & Fee Concessions, Student Support Services) and the
+hostel/mess/other per-year fee figures in Section 4 fill gaps the real site didn't
+publish, using bvrit_college_info.pdf — the course's reference grounding document —
+since no real-site figures existed for these topics.
+Where a figure is still not published anywhere, the document says so explicitly
+instead of inventing a number — the chatbot must be able to refuse on these gracefully.
 
-Each of the 8 sections is placed on its own page (explicit page break) so that the
+Each of the 10 sections is placed on its own page (explicit page break) so that the
 page number is deterministic and can be used as citation metadata during ingestion,
 without needing to render/paginate the .docx.
 """
@@ -126,11 +129,24 @@ SECTIONS = [
             ("Additional annual charges:"),
             ("- NBA Fee: Rs. 3,000 per annum, applicable to NBA-accredited programmes (EEE, ECE, CSE). CSM (AI&ML) is exempt from the NBA fee.", True),
             ("- JNTUH / Miscellaneous Fee: Rs. 5,500 per annum (Rs. 2,500 for the 2022 batch)", True),
-            ("Hostel fees, mess charges, transport fees, and scholarship / financial "
-             "aid details are not published on the official fee-details page used for "
-             "this document. Prospective students should contact the admissions office "
-             "(Dr. J. Manoj Kumar, 92471 64714, or info@bvrithyderabad.edu.in) for "
-             "current hostel and scholarship figures — do not assume or estimate these."),
+            ("Hostel, mess, and other per-year fee figures (as published in the college's "
+             "reference fee schedule, not on the public fee-details webpage used for the "
+             "rest of this section):"),
+            ("- Hostel room rent, shared 3-seater: Rs. 60,000 per year", True),
+            ("- Hostel room rent, shared 2-seater: Rs. 75,000 per year", True),
+            ("- Mess charges (vegetarian): Rs. 48,000 per year", True),
+            ("- Mess charges (non-vegetarian): Rs. 54,000 per year", True),
+            ("- Transport (college bus): Rs. 45,000 per year, optional", True),
+            ("- Laboratory fee: Rs. 15,000 per year", True),
+            ("- Library & digital resources fee: Rs. 8,000 per year", True),
+            ("- Examination fee: Rs. 5,000 per semester (Rs. 10,000 per year)", True),
+            ("- Student activity fee: Rs. 3,000 per year", True),
+            ("- Caution deposit (refundable): Rs. 10,000, one-time at admission", True),
+            ("- Admission processing fee: Rs. 5,000, one-time at admission", True),
+            ("Scholarship and fee-concession schemes are covered separately in Section 9 "
+             "(Scholarships & Fee Concessions). For anything not covered above, contact "
+             "the admissions office (Dr. J. Manoj Kumar, 92471 64714, or "
+             "info@bvrithyderabad.edu.in) rather than assuming a figure."),
         ],
     },
     {
@@ -243,6 +259,51 @@ SECTIONS = [
             ("- Facebook: facebook.com/BvritHyderabad/", True),
             ("- YouTube: youtube.com/@BvritHyderabadWomen", True),
             ("- X (Twitter): x.com/bvrithyderabad", True),
+        ],
+    },
+    {
+        "heading": "9. Scholarships & Fee Concessions",
+        "body": [
+            ("BVRIT Hyderabad offers several scholarship schemes to support meritorious and "
+             "economically disadvantaged students. Scholarships are applied as a percentage "
+             "discount on the annual tuition fee only (not on hostel, mess, or other fees)."),
+            ("Merit scholarships:"),
+            ("- Founder's Scholarship: EAMCET/EAPCET rank within top 1,000 — 100% (full tuition waiver); renewable if CGPA >= 8.5", True),
+            ("- Academic Excellence: EAMCET/EAPCET rank 1,001-5,000 — 50% discount on tuition; renewable if CGPA >= 8.0", True),
+            ("- Merit Reward: EAMCET/EAPCET rank 5,001-15,000 — 25% discount on tuition; renewable if CGPA >= 7.5", True),
+            ("- Sports Scholarship: national/state level sports achievement — 25% discount on tuition; renewable with active participation", True),
+            ("Need-based fee concessions:"),
+            ("- Economically Weaker Section (EWS): family income below Rs. 8 lakh/year — 50% discount on tuition", True),
+            ("- SC/ST Scholarship: Telangana state SC/ST students — full tuition reimbursement via state government", True),
+            ("- BC Fee Reimbursement: Telangana BC students, income under Rs. 2 lakh — full tuition reimbursement via state government", True),
+            ("- Sibling Discount: second sibling currently enrolled at BVRIT Hyderabad — 10% discount on tuition", True),
+            ("Note: government scholarships (SC/ST, BC) are subject to state government "
+             "disbursement timelines. Students must pay the full fee at admission and receive "
+             "reimbursement after government processing, which typically takes 3-6 months."),
+        ],
+    },
+    {
+        "heading": "10. Student Support Services",
+        "body": [
+            ("Student Counselling Centre: provides free, confidential support for academic "
+             "stress, personal issues, and mental health concerns. Two full-time counsellors "
+             "are available Monday-Saturday, 9 AM - 5 PM. Appointments can be booked in person "
+             "at the Admin Block or via email at counselling@bvrithyderabad.edu.in; walk-ins "
+             "are welcome."),
+            ("In case of crisis: students in distress can contact the counselling centre "
+             "directly. For after-hours emergencies, contact hostel wardens or campus security "
+             "(available 24/7)."),
+            ("External crisis resources:"),
+            ("- iCall — 9152987821 (Mon-Sat, 8 AM - 10 PM)", True),
+            ("- Vandrevala Foundation Helpline — 1860-2662-345 (24/7)", True),
+            ("- NIMHANS Helpline — 080-46110007", True),
+            ("Anti-Ragging Committee: BVRIT Hyderabad has a zero-tolerance policy on ragging. "
+             "The Anti-Ragging Committee can be contacted via the admissions office or the UGC "
+             "helpline 1800-180-5522. All complaints are investigated within 48 hours."),
+            ("Grievance Redressal: students can submit grievances in writing to the Dean "
+             "(Student Affairs) or via the college's grievance channel. All grievances receive "
+             "a response within 7 working days. The Grievance Redressal Committee meets monthly "
+             "to review pending cases."),
         ],
     },
 ]

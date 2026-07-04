@@ -6,12 +6,14 @@ Retrieval stays entirely separate (see retriever.py) — this module only turns
 (query, retrieved chunks, history) into a cited answer string.
 """
 
+import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import config
+import tools
 from retriever import RetrievedChunk
 
 REFUSAL_PREFIX = "REFUSED:"
@@ -47,6 +49,12 @@ CONTEXT, so you do not actually know that DSM means this, and you must not state
 term exactly as the user wrote it; add no parenthetical guess about what it stands for.)
 Only ever write out what an acronym stands for if that exact expansion appears verbatim in the CONTEXT \
 given to you this turn.
+
+TOOLS
+You have access to a "calculate" tool for arithmetic (add, subtract, multiply, divide). Use it only \
+to compute over a number that already appears in the CONTEXT (e.g. an annual fee x a number of years) \
+-- never to produce a number that isn't grounded in the CONTEXT. After the tool returns a result, \
+state it plainly and still cite the CONTEXT chunk the input figure came from.
 
 CITATION FORMAT
 Every factual claim you make must be followed by a citation in the exact form \
@@ -126,26 +134,59 @@ def build_messages(
     return messages
 
 
-def call_llm(messages: list[dict]) -> tuple[str, dict]:
+def _add_tokens(totals: dict, usage) -> None:
+    if usage:
+        totals["prompt_tokens"] += usage.prompt_tokens
+        totals["completion_tokens"] += usage.completion_tokens
+
+
+def call_llm(messages: list[dict]) -> tuple[str, dict, list[dict]]:
+    """Runs the tool-use loop (Day 5, Session 1): one call with the tool menu
+    attached; if the model calls a tool, execute it and make exactly one
+    follow-up call for the final answer. If it doesn't call a tool, its first
+    response is used as-is -- tool_calls is None/empty in that case, not a bug
+    to route around (see the "Five Mistakes" slide: check before assuming)."""
     client = config.get_chat_client()
+    token_totals = {"prompt_tokens": 0, "completion_tokens": 0}
+
     response = client.chat.completions.create(
+        model=config.CHAT_MODEL,
+        messages=messages,
+        tools=tools.TOOLS,
+        temperature=0.1,
+    )
+    _add_tokens(token_totals, response.usage)
+    message = response.choices[0].message
+
+    if not message.tool_calls:
+        return message.content, token_totals, []
+
+    tool_calls_made = []
+    messages = messages + [message.model_dump(exclude_none=True)]
+    for tool_call in message.tool_calls:
+        name = tool_call.function.name
+        try:
+            arguments = json.loads(tool_call.function.arguments)
+        except json.JSONDecodeError:
+            arguments = {}
+        result = tools.run_tool_call(name, arguments)
+        tool_calls_made.append({"name": name, "arguments": arguments, "result": result})
+        messages.append({"role": "tool", "tool_call_id": tool_call.id, "content": result})
+
+    final = client.chat.completions.create(
         model=config.CHAT_MODEL,
         messages=messages,
         temperature=0.1,
     )
-    usage = response.usage
-    tokens = {
-        "prompt_tokens": usage.prompt_tokens if usage else None,
-        "completion_tokens": usage.completion_tokens if usage else None,
-    }
-    return response.choices[0].message.content, tokens
+    _add_tokens(token_totals, final.usage)
+    return final.choices[0].message.content, token_totals, tool_calls_made
 
 
 def generate_answer(
     query: str,
     retrieved_chunks: list[RetrievedChunk],
     history: list[dict] | None = None,
-) -> tuple[str, dict]:
+) -> tuple[str, dict, list[dict]]:
     messages = build_messages(query, retrieved_chunks, history)
     return call_llm(messages)
 
