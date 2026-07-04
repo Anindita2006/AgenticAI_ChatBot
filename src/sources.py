@@ -29,6 +29,18 @@ _SECTION_URLS = {
 
 DEFAULT_URL = "https://bvrithyderabad.edu.in/"
 
+GOOGLE_MAPS_URL = (
+    "https://www.google.com/maps/search/?api=1&query="
+    "BVRIT+HYDERABAD+College+of+Engineering+for+Women+Nizampet+Road+Bachupally+Hyderabad"
+)
+
+_LOCATION_KEYWORDS = ["address", "located", "location", "bachupally", "nizampet", "rajiv gandhi nagar colony"]
+
+
+def location_mentioned(text: str) -> bool:
+    lower = text.lower()
+    return any(k in lower for k in _LOCATION_KEYWORDS)
+
 
 def resolve_source_url(section: str, text: str) -> str:
     """Best-effort: prefer a department-specific page if the chunk text

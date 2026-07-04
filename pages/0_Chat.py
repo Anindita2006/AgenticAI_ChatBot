@@ -23,7 +23,7 @@ from generation import REFUSAL_PREFIX
 from people import people_mentioned
 from pipeline import answer_question
 from retriever import get_index_stats, list_sections
-from sources import resolve_source_url
+from sources import GOOGLE_MAPS_URL, location_mentioned, resolve_source_url
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -44,11 +44,12 @@ def _dedupe_citations(chunks):
     return citations
 
 
-def _render_citations(citations):
+def _render_citations(citations, answer_text: str = ""):
     with st.expander(f"📚 Sources ({len(citations)})", expanded=False):
-        theme.link_chip_row([
-            (f"📄 {c['section']}, Page {c['page']}", c["url"]) for c in citations
-        ])
+        chips = [(f"📄 {c['section']}, Page {c['page']}", c["url"]) for c in citations]
+        if location_mentioned(answer_text):
+            chips.append(("🗺️ View on Google Maps", GOOGLE_MAPS_URL))
+        theme.link_chip_row(chips)
 
 
 def _render_photos(text: str) -> None:
@@ -117,7 +118,7 @@ for msg in st.session_state.messages:
         if msg["role"] == "assistant":
             _render_photos(msg["display_content"])
         if msg.get("citations"):
-            _render_citations(msg["citations"])
+            _render_citations(msg["citations"], msg["display_content"])
         if msg.get("stats"):
             s = msg["stats"]
             chips = [f"⏱ {s['latency']:.2f}s", f"🧩 {s['chunk_count']} chunks"]
@@ -150,7 +151,7 @@ if prompt:
 
         citations = _dedupe_citations(result["retrieved_chunks"])
         if citations:
-            _render_citations(citations)
+            _render_citations(citations, display_content)
 
         stats = {
             "latency": result["latency"],
