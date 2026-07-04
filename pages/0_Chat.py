@@ -18,9 +18,12 @@ import streamlit as st
 
 import config
 import theme
+from facilities import facilities_mentioned
 from generation import REFUSAL_PREFIX
+from people import people_mentioned
 from pipeline import answer_question
 from retriever import get_index_stats, list_sections
+from sources import resolve_source_url
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -33,13 +36,37 @@ def _dedupe_citations(chunks):
         key = (c.section, c.page)
         if key not in seen:
             seen.add(key)
-            citations.append({"section": c.section, "page": c.page})
+            citations.append({
+                "section": c.section,
+                "page": c.page,
+                "url": resolve_source_url(c.section, c.text),
+            })
     return citations
+
+
+def _render_citations(citations):
+    with st.expander(f"📚 Sources ({len(citations)})", expanded=False):
+        theme.link_chip_row([
+            (f"📄 {c['section']}, Page {c['page']}", c["url"]) for c in citations
+        ])
+
+
+def _render_photos(text: str) -> None:
+    subjects = people_mentioned(text) + facilities_mentioned(text)
+    subjects = [s for s in subjects if s["image"].exists()]
+    if not subjects:
+        return
+    cols = st.columns(len(subjects))
+    for col, subject in zip(cols, subjects):
+        with col:
+            st.image(str(subject["image"]), width=140)
+            caption = subject["name"] if "role" not in subject else f"**{subject['name']}**  \n{subject['role']}"
+            st.caption(caption)
 
 
 # ---------------------------------------------------------------- sidebar --
 with st.sidebar:
-    st.title("🎓 BVRIT Hyderabad")
+    st.title("🎓 BVRITH")
     st.caption("RAG-powered College Information Assistant")
 
     st.subheader("Knowledge Base")
@@ -80,16 +107,17 @@ with st.sidebar:
             theme.chip_row(chips)
 
 # ------------------------------------------------------------- main chat --
-theme.hero("💬", "Chat with BVRIT Knowledge Base", "RAG-powered · Cited answers · Refuses gracefully when information isn't in the knowledge base")
+theme.hero("💬", "Chat with BVRITH Knowledge Base", "RAG-powered · Cited answers · Refuses gracefully when information isn't in the knowledge base")
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if msg["role"] == "assistant" and msg.get("refused"):
             st.badge("REFUSED", icon="🚫", color="red")
         st.markdown(msg["display_content"])
+        if msg["role"] == "assistant":
+            _render_photos(msg["display_content"])
         if msg.get("citations"):
-            with st.expander(f"📚 Sources ({len(msg['citations'])})", expanded=False):
-                theme.chip_row([f"📄 {c['section']}, Page {c['page']}" for c in msg["citations"]])
+            _render_citations(msg["citations"])
         if msg.get("stats"):
             s = msg["stats"]
             chips = [f"⏱ {s['latency']:.2f}s", f"🧩 {s['chunk_count']} chunks"]
@@ -97,7 +125,7 @@ for msg in st.session_state.messages:
                 chips.append(f"🔤 {s['tokens_in']}/{s['tokens_out']} tok")
             theme.chip_row(chips)
 
-prompt = st.chat_input("Ask a question about BVRIT Hyderabad...")
+prompt = st.chat_input("Ask a question about BVRITH...")
 
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt, "display_content": prompt})
@@ -118,11 +146,11 @@ if prompt:
             st.badge("REFUSED", icon="🚫", color="red")
             display_content = display_content[len(REFUSAL_PREFIX):].strip()
         st.markdown(display_content)
+        _render_photos(display_content)
 
         citations = _dedupe_citations(result["retrieved_chunks"])
         if citations:
-            with st.expander(f"📚 Sources ({len(citations)})", expanded=False):
-                theme.chip_row([f"📄 {c['section']}, Page {c['page']}" for c in citations])
+            _render_citations(citations)
 
         stats = {
             "latency": result["latency"],

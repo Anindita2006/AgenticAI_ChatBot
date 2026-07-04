@@ -17,7 +17,7 @@ import streamlit as st
 
 import theme
 
-st.set_page_config(page_title="BVRIT Hyderabad FAQ Chatbot", page_icon="🎓", layout="wide")
+st.set_page_config(page_title="BVRITH FAQ Chatbot", page_icon="🎓", layout="wide")
 theme.inject_global_css()
 
 pages = [

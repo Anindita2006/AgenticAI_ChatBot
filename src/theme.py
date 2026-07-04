@@ -171,6 +171,16 @@ html, body, [class*="css"] { font-family: 'Inter', system-ui, -apple-system, "Se
   font-size: 0.82rem;
   color: var(--gh-ink-2);
 }
+a.gh-chip {
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+a.gh-chip:hover {
+  background: var(--gh-surface-hover);
+  color: var(--gh-violet);
+  transform: translateY(-1px);
+}
 
 .gh-progress-track {
   width: 100%; height: 7px; border-radius: 999px;
@@ -235,26 +245,27 @@ hr, [data-testid="stDivider"] {
 
 /* ---------------------------------------------------------- chat bubbles */
 [data-testid="stChatMessage"] {
-  display: flex;
+  display: flex !important;
+  width: fit-content !important;
+  max-width: 78% !important;
   border-radius: 16px;
   border: 1px solid var(--gh-border);
   padding: 0.5rem 0.9rem;
   margin-bottom: 0.55rem;
-  max-width: 78%;
   animation: gh-fade-up 0.35s ease both;
 }
 /* User on the right, avatar outermost; assistant on the left. */
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
   background: linear-gradient(135deg, var(--gh-glow-b), transparent);
-  margin-left: auto;
-  margin-right: 0;
+  margin-left: auto !important;
+  margin-right: 0 !important;
   flex-direction: row-reverse;
   text-align: right;
 }
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {
   background: linear-gradient(135deg, var(--gh-glow-a), transparent);
-  margin-right: auto;
-  margin-left: 0;
+  margin-right: auto !important;
+  margin-left: 0 !important;
 }
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) [data-testid="stChatMessageContent"] {
   text-align: right;
@@ -304,6 +315,15 @@ def pulse_dot(label: str) -> None:
 
 def chip_row(items: list[str]) -> None:
     chips = "".join(f'<span class="gh-chip">{html.escape(item)}</span>' for item in items)
+    st.markdown(f'<div class="gh-chip-row">{chips}</div>', unsafe_allow_html=True)
+
+
+def link_chip_row(items: list[tuple[str, str]]) -> None:
+    """items: list of (label, href) — renders each chip as a clickable link that opens in a new tab."""
+    chips = "".join(
+        f'<a class="gh-chip" href="{html.escape(href)}" target="_blank" rel="noopener">{html.escape(label)}</a>'
+        for label, href in items
+    )
     st.markdown(f'<div class="gh-chip-row">{chips}</div>', unsafe_allow_html=True)
 
 
