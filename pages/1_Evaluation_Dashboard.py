@@ -18,6 +18,7 @@ import streamlit as st
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
+import config
 import theme
 
 REPORT_PATH = PROJECT_ROOT / "eval" / "report.json"
@@ -117,7 +118,13 @@ with col_donut:
 st.divider()
 
 # --------------------------------------------------------- dimension cards --
-st.subheader("Per-Dimension Breakdown")
+head_col, filter_col = st.columns([3, 2])
+head_col.subheader("Per-Dimension Breakdown")
+case_filter = filter_col.segmented_control(
+    "Show cases", options=["All", "Passed", "Failed"], default="All", label_visibility="collapsed",
+)
+case_filter = case_filter or "All"
+
 dims = report["dimensions"]
 for row_start in (0, 4):
     cols = st.columns(4)
@@ -128,12 +135,55 @@ for row_start in (0, 4):
             frac = dim["passed"] / dim["total"] if dim["total"] else 0.0
             bar_color = GOOD if frac == 1 else (CRITICAL if frac == 0 else WARNING)
             theme.progress_bar(frac, bar_color)
-            for case in dim["cases"]:
+            shown = [
+                c for c in dim["cases"]
+                if case_filter == "All"
+                or (case_filter == "Passed" and c["verdict"] == "pass")
+                or (case_filter == "Failed" and c["verdict"] == "fail")
+            ]
+            if not shown:
+                st.caption("_No cases match this filter._")
+            for case in shown:
                 icon = "✅" if case["verdict"] == "pass" else "❌"
                 preview = case["question"] if case["question"].strip() else "(empty input)"
                 st.caption(f"{icon} {case['id']}: {preview[:45]}{'…' if len(preview) > 45 else ''}")
 
 st.divider()
+
+# ------------------------------------------------------- performance latency --
+perf_dim = next((d for d in dims if d["code"] == "06"), None)
+if perf_dim and any(c.get("latency") is not None for c in perf_dim["cases"]):
+    st.subheader("Performance — Latency by Case")
+    lat_df = pd.DataFrame([
+        {"id": c["id"], "question": c["question"][:60], "latency": c["latency"],
+         "color": GOOD if c["latency"] <= config.PERFORMANCE_SLA_SECONDS else CRITICAL}
+        for c in perf_dim["cases"] if c.get("latency") is not None
+    ])
+    lat_hover = alt.selection_point(fields=["id"], on="pointerover", nearest=True, empty=False)
+    lat_bars = alt.Chart(lat_df).mark_bar(cornerRadiusEnd=6, size=22).encode(
+        x=alt.X("latency:Q", title="Seconds", axis=alt.Axis(gridColor=GRIDLINE)),
+        y=alt.Y("id:N", sort=None, axis=alt.Axis(title=None)),
+        color=alt.Color("color:N", scale=None, legend=None),
+        opacity=alt.condition(lat_hover, alt.value(1.0), alt.value(0.82)),
+        tooltip=[alt.Tooltip("id:N", title="Case"), alt.Tooltip("question:N", title="Question"),
+                  alt.Tooltip("latency:Q", title="Latency (s)", format=".2f")],
+    ).add_params(lat_hover)
+    lat_labels = lat_bars.mark_text(align="left", dx=6, color=SECONDARY_INK, fontWeight="bold").encode(
+        text=alt.Text("latency:Q", format=".2f"), opacity=alt.value(1.0),
+    )
+    lat_threshold = alt.Chart(pd.DataFrame({"x": [config.PERFORMANCE_SLA_SECONDS]})).mark_rule(
+        color=MUTED, strokeDash=[4, 3], strokeWidth=1.5
+    ).encode(x="x:Q")
+    lat_chart = (
+        (lat_bars + lat_labels + lat_threshold)
+        .properties(height=120, background="transparent")
+        .configure_axis(labelColor=SECONDARY_INK, titleColor=SECONDARY_INK, domainColor=GRIDLINE, tickColor=GRIDLINE)
+        .configure_view(strokeWidth=0)
+    )
+    st.altair_chart(lat_chart, use_container_width=True)
+    st.caption(f"Dashed line = {config.PERFORMANCE_SLA_SECONDS:.0f}s SLA · hover a bar for the question")
+
+    st.divider()
 
 # ----------------------------------------------------------- failed details --
 failed_cases = [
@@ -147,7 +197,18 @@ st.subheader(f"Failed Test Details ({len(failed_cases)})")
 if not failed_cases:
     st.success("No failing test cases in this run.")
 else:
-    for dim, case in failed_cases:
+    query = st.text_input(
+        "Search failed cases", placeholder="Filter by case id, dimension, or question text…",
+        label_visibility="collapsed",
+    ).strip().lower()
+    visible = [
+        (dim, case) for dim, case in failed_cases
+        if not query or query in case["id"].lower() or query in dim["name"].lower()
+        or query in (case["question"] or "").lower()
+    ]
+    if not visible:
+        st.caption("_No failed cases match your search._")
+    for dim, case in visible:
         with st.expander(f"❌ {case['id']} — {dim['name']}: {case['question'] or '(empty input)'}"):
             st.markdown(f"**Question:** {case['question'] or '_(empty input)_'}")
             st.markdown(f"**Expected:** {case['expected_answer']}")
@@ -189,5 +250,10 @@ if ragas_scores:
 
     st.caption("Dashed line = 0.7 pass threshold · hover a bar to highlight it")
     st.caption(f"📌 {report['ragas_diagnosis']}")
+    with st.expander("View as table"):
+        st.dataframe(
+            df[["metric", "score"]].style.format({"score": "{:.3f}"}),
+            hide_index=True, use_container_width=True,
+        )
 else:
     st.info("No RAGAS-scored test cases in this report.")

@@ -55,6 +55,7 @@ def build_report(cases: list[dict]) -> dict:
                     "actual_answer": c["actual_answer"],
                     "verdict": c["verdict"],
                     "reason": c["judge_reason"],
+                    "latency": c.get("latency"),
                 }
                 for c in dim_cases
             ],
