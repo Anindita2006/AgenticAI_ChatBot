@@ -1,8 +1,10 @@
 """Phase 4 — Chat UI.
 
-Streamlit chat interface for the BVRIT Hyderabad FAQ chatbot: sidebar shows
-knowledge-base status and retrieval settings, main area is a cited chat with
-a REFUSED badge on out-of-scope answers and per-query latency/token stats.
+Streamlit chat interface for the BVRITH FAQ chatbot: a simple, non-technical
+sidebar (logo, topic filter, clear button) and a main area with cited,
+photo-illustrated answers. Deliberately keeps RAG internals (chunk counts,
+token counts, retrieval knobs) out of the visible UI — those live in the
+Evaluation Dashboard instead, where they're the point.
 
 Page config and theme injection live in app.py (the st.navigation entry
 point), which runs before this page is dispatched.
@@ -24,6 +26,8 @@ from people import people_mentioned
 from pipeline import answer_question
 from retriever import get_index_stats, list_sections
 from sources import GOOGLE_MAPS_URL, location_mentioned, resolve_source_url
+
+LOGO_PATH = Path(__file__).resolve().parent.parent / "data" / "images" / "bvrith_logo.jpg"
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -67,64 +71,42 @@ def _render_photos(text: str) -> None:
 
 # ---------------------------------------------------------------- sidebar --
 with st.sidebar:
-    st.title("🎓 BVRITH")
-    st.caption("RAG-powered College Information Assistant")
+    theme.sidebar_logo(LOGO_PATH)
+    st.caption("Ask me anything about admissions, fees, placements, faculty, or campus life.")
 
-    st.subheader("Knowledge Base")
     try:
         stats = get_index_stats()
-        st.badge(f"{config.KB_SOURCE_NAME}", icon="📄", color="green")
-        col1, col2 = st.columns(2)
-        col1.metric("Chunks indexed", stats["chunk_count"])
-        with col2:
-            st.markdown("<div style='margin-top:0.9rem'></div>", unsafe_allow_html=True)
-            theme.pulse_dot("LIVE")
+        topics = ["All topics"] + list_sections()
+        assistant_ready = True
     except Exception:
         stats = None
-        st.badge("Not indexed", icon="⚠️", color="red")
-        st.caption("Run `python src/ingest.py` first to build the index.")
+        topics = ["All topics"]
+        assistant_ready = False
 
-    st.subheader("Retrieval Settings")
-    if stats and stats["chunk_size"]:
-        st.caption(f"Indexed with chunk_size={stats['chunk_size']}, overlap={stats['chunk_overlap']}")
-    top_k = st.slider("Top-K results", min_value=1, max_value=10, value=config.DEFAULT_TOP_K)
-
-    section_options = ["All Sections"] + (list_sections() if stats else [])
-    section_choice = st.selectbox("Section filter", section_options)
-    section_filter = None if section_choice == "All Sections" else section_choice
+    if assistant_ready:
+        topic_choice = st.selectbox("Ask about a specific topic", topics)
+        section_filter = None if topic_choice == "All topics" else topic_choice
+    else:
+        section_filter = None
+        st.warning("The assistant isn't ready yet. Please try again shortly.")
 
     st.divider()
     if st.button("🗑️ Clear conversation", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
-    if st.session_state.messages:
-        last = st.session_state.messages[-1]
-        if last["role"] == "assistant":
-            st.subheader("Last Query")
-            chips = [f"⏱ {last['stats']['latency']:.2f}s", f"🧩 {last['stats']['chunk_count']} chunks"]
-            if last["stats"]["tokens_in"] is not None:
-                chips.append(f"🔤 {last['stats']['tokens_in']}/{last['stats']['tokens_out']} tok")
-            theme.chip_row(chips)
-
 # ------------------------------------------------------------- main chat --
-theme.hero("💬", "Chat with BVRITH Knowledge Base", "RAG-powered · Cited answers · Refuses gracefully when information isn't in the knowledge base")
+theme.brand_hero(LOGO_PATH, "Your AI assistant for everything BVRITH")
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if msg["role"] == "assistant" and msg.get("refused"):
-            st.badge("REFUSED", icon="🚫", color="red")
+            st.badge("Not covered", icon="ℹ️", color="gray")
         st.markdown(msg["display_content"])
         if msg["role"] == "assistant":
             _render_photos(msg["display_content"])
         if msg.get("citations"):
             _render_citations(msg["citations"], msg["display_content"])
-        if msg.get("stats"):
-            s = msg["stats"]
-            chips = [f"⏱ {s['latency']:.2f}s", f"🧩 {s['chunk_count']} chunks"]
-            if s["tokens_in"] is not None:
-                chips.append(f"🔤 {s['tokens_in']}/{s['tokens_out']} tok")
-            theme.chip_row(chips)
 
 prompt = st.chat_input("Ask a question about BVRITH...")
 
@@ -140,11 +122,11 @@ if prompt:
 
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
-            result = answer_question(prompt, history=history, top_k=top_k, section=section_filter)
+            result = answer_question(prompt, history=history, top_k=config.DEFAULT_TOP_K, section=section_filter)
 
         display_content = result["answer"]
         if result["refused"]:
-            st.badge("REFUSED", icon="🚫", color="red")
+            st.badge("Not covered", icon="ℹ️", color="gray")
             display_content = display_content[len(REFUSAL_PREFIX):].strip()
         st.markdown(display_content)
         _render_photos(display_content)
@@ -153,22 +135,10 @@ if prompt:
         if citations:
             _render_citations(citations, display_content)
 
-        stats = {
-            "latency": result["latency"],
-            "chunk_count": len(result["retrieved_chunks"]),
-            "tokens_in": result["tokens_in"],
-            "tokens_out": result["tokens_out"],
-        }
-        chips = [f"⏱ {stats['latency']:.2f}s", f"🧩 {stats['chunk_count']} chunks"]
-        if stats["tokens_in"] is not None:
-            chips.append(f"🔤 {stats['tokens_in']}/{stats['tokens_out']} tok")
-        theme.chip_row(chips)
-
     st.session_state.messages.append({
         "role": "assistant",
         "content": result["answer"],
         "display_content": display_content,
         "refused": result["refused"],
         "citations": citations,
-        "stats": stats,
     })

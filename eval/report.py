@@ -22,6 +22,24 @@ DIMENSION_NAMES = {
     "01": "Functional", "02": "Quality", "03": "Safety", "04": "Security",
     "05": "Robustness", "06": "Performance", "07": "Context", "08": "RAGAS",
 }
+DIMENSION_FIX_HINTS = {
+    "01": "Tighten the system prompt's formatting/citation/completeness instructions, or verify "
+          "the retrieved chunk actually contains every item the question asks for.",
+    "02": "If the fact is present in the retrieved context, tighten the grounding prompt's 'answer "
+          "ONLY from context' rule; if it's missing from the context, add it to the source document.",
+    "03": "Add an explicit instruction to the system prompt's SAFETY section covering this exact "
+          "refusal scenario, mirroring the pass criteria.",
+    "04": "Reinforce the SECURITY section of the system prompt against this exact injection/role-break "
+          "pattern.",
+    "05": "Add a rule plus a concrete worked example for this exact malformed-input pattern to the "
+          "REFUSAL INSTRUCTION — an abstract rule alone is often not enough for a small model.",
+    "06": "Investigate latency: check the embedding/completion API round-trip, or reduce top_k / "
+          "chunk_size.",
+    "07": "Make sure the full conversation history (not just the latest turn) is threaded into the "
+          "prompt so follow-up references resolve correctly.",
+    "08": "Improve retrieval: reduce chunk_size, increase top_k, or add metadata filters so only "
+          "relevant chunks are retrieved for this query.",
+}
 
 
 def merge_results() -> list[dict]:
@@ -56,6 +74,7 @@ def build_report(cases: list[dict]) -> dict:
                     "verdict": c["verdict"],
                     "reason": c["judge_reason"],
                     "latency": c.get("latency"),
+                    "suggested_fix": DIMENSION_FIX_HINTS[code] if c["verdict"] == "fail" else None,
                 }
                 for c in dim_cases
             ],

@@ -17,7 +17,9 @@ actually picked — system, light, or dark) and renders the matching CSS
 variable block server-side, so the accent colors track the native toggle.
 """
 
+import base64
 import html
+from pathlib import Path
 
 import streamlit as st
 
@@ -301,6 +303,32 @@ def hero(icon: str, title: str, subtitle: str) -> None:
         f"""<div class="gh-hero">
             <p class="gh-hero-title">{html.escape(icon)} {html.escape(title)}</p>
             <p class="gh-hero-sub">{html.escape(subtitle)}</p>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+
+
+def _img_b64(path) -> str:
+    return base64.b64encode(Path(path).read_bytes()).decode()
+
+
+def brand_hero(logo_path, subtitle: str) -> None:
+    """Hero banner that shows the real college logo instead of an emoji + title."""
+    b64 = _img_b64(logo_path)
+    st.markdown(
+        f"""<div class="gh-hero" style="display:flex; align-items:center; gap:1.1rem;">
+            <img src="data:image/jpeg;base64,{b64}" style="height:44px; width:auto;" alt="BVRITH logo"/>
+            <p class="gh-hero-sub" style="margin:0;">{html.escape(subtitle)}</p>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+
+
+def sidebar_logo(logo_path) -> None:
+    b64 = _img_b64(logo_path)
+    st.markdown(
+        f"""<div style="text-align:center; padding:0.3rem 0 1rem;">
+            <img src="data:image/jpeg;base64,{b64}" style="max-width:90%; height:auto;" alt="BVRITH logo"/>
         </div>""",
         unsafe_allow_html=True,
     )

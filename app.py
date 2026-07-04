@@ -17,7 +17,9 @@ import streamlit as st
 
 import theme
 
-st.set_page_config(page_title="BVRITH FAQ Chatbot", page_icon="🎓", layout="wide")
+LOGO_PATH = Path(__file__).resolve().parent / "data" / "images" / "bvrith_logo.jpg"
+
+st.set_page_config(page_title="BVRITH FAQ Chatbot", page_icon=str(LOGO_PATH), layout="wide")
 theme.inject_global_css()
 
 pages = [

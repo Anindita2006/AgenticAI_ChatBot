@@ -214,6 +214,8 @@ else:
             st.markdown(f"**Expected:** {case['expected_answer']}")
             st.markdown(f"**Actual:** {case['actual_answer']}")
             st.markdown(f"**Reason:** {case['reason']}")
+            if case.get("suggested_fix"):
+                st.info(f"**Suggested fix:** {case['suggested_fix']}", icon="🛠️")
 
 st.divider()
 
