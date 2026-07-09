@@ -34,14 +34,23 @@ KB_SOURCE_NAME = "knowledge_base.pdf"
 COLLECTION_NAME = "bvrit_college_info"
 
 # Chunking defaults — see spec.md "Chunking strategy" for the justification.
-# 400/60 was chosen empirically over an initial 800/120: sections are short,
-# fact-dense paragraphs, and 800-char chunks were merging distinct facts (e.g.
-# admission categories + JEE policy) into one embedding, diluting retrieval
-# precision for pointed questions. 400/60 keeps each chunk closer to one fact.
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "400"))
-CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "60"))
+# 500/100 for data/knowledge_base.pdf's real, denser prose (comma-separated
+# achievement/fact lists running 500+ chars) -- 400/60 (tuned for the old
+# synthetic doc's short fact-per-paragraph structure) was splitting single
+# facts mid-sentence across two chunks (e.g. "...Mentorship programs in Top
+# most MNCs like Microsoft, Amazon," | "QualComm etc" landed in separate
+# chunks, and the second half's embedding no longer resembled a "mentorship"
+# query at all since it had lost the word "Mentorship"), causing the chatbot
+# to retrieve neither half of these facts intact for direct questions about
+# them.
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "500"))
+CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "100"))
 
-DEFAULT_TOP_K = int(os.getenv("DEFAULT_TOP_K", "6"))
+# 9, not 6: several facts in data/knowledge_base.pdf (e.g. named MNC partners, the
+# later items in a 5-item core-values list) live in chunks that rank 7-9 on
+# semantic similarity for their own most natural question -- 6 was cutting off
+# genuinely relevant chunks the answer needed to be complete, not just adding noise.
+DEFAULT_TOP_K = int(os.getenv("DEFAULT_TOP_K", "9"))
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")

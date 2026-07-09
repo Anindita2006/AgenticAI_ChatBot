@@ -23,16 +23,21 @@ dashboard/alerts can read them back without re-parsing the file.
 
 import json
 import statistics
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 import config
 
+_LIVE_EVAL_WRITE_LOCK = threading.Lock()  # guards against two concurrent Streamlit sessions
+                                           # (different users/tabs) racing on the same append
+
 LOG_DIR = config.PROJECT_ROOT / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 CALL_LOG_PATH = LOG_DIR / "llm_calls.jsonl"
 QUERY_LOG_PATH = LOG_DIR / "query_log.jsonl"
+LIVE_EVAL_LOG_PATH = LOG_DIR / "live_eval_log.jsonl"
 
 # USD per 1M tokens -- OpenRouter's rates for the exact OpenAI-family models this
 # project uses (see config.py). Embeddings have no output tokens.
@@ -195,6 +200,33 @@ def log_rejected_input(query: str, reason: str) -> dict:
     get_query_logs().append(entry)
     _append_jsonl(QUERY_LOG_PATH, entry)
     return entry
+
+
+def log_live_eval(entry: dict) -> None:
+    """Appends one scored real chat question to logs/live_eval_log.jsonl -- the
+    durable, cross-session history the Evaluation Dashboard's "Live Chat
+    Evaluation" section reads back. Deliberately file-only, no session_state
+    mirror (unlike query_log): the dashboard is typically a different browser
+    tab/session than the one chatting, so session_state wouldn't be shared
+    with it anyway."""
+    entry = {"timestamp": datetime.now(timezone.utc).isoformat(), **entry}
+    with _LIVE_EVAL_WRITE_LOCK:
+        _append_jsonl(LIVE_EVAL_LOG_PATH, entry)
+
+
+def get_live_eval_history() -> list[dict]:
+    """Reads the full live-eval history fresh from disk every call, so the
+    dashboard always reflects whatever background scoring has completed by
+    the time the page (re)renders -- deliberately not cached in session_state."""
+    if not LIVE_EVAL_LOG_PATH.exists():
+        return []
+    entries = []
+    with open(LIVE_EVAL_LOG_PATH, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                entries.append(json.loads(line))
+    return entries
 
 
 def validate_input_length(text: str) -> str | None:

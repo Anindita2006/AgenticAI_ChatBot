@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import config
 import observability
 from generation import FALLBACK_CONTACT, REFUSAL_PREFIX, generate_answer, is_refusal
+from live_eval import evaluate_live_answer
 from retriever import retrieve
 
 MAX_HISTORY_MESSAGES = 20  # a defensive cap, not the real space-management strategy -- the Chat page
@@ -40,6 +41,40 @@ def _retrieval_query(query: str, profile: dict | None) -> str:
     return query
 
 
+def _score_live_answer(
+    query: str, answer: str, chunks: list, refused: bool, latency: float,
+    tokens_in: int | None, tokens_out: int | None, tool_calls: list[dict], variant: str,
+) -> None:
+    """Runs the reference-free judge (one extra LLM call) and logs the result
+    for the dashboard's "Live Chat Evaluation" history. Runs synchronously,
+    in-line with the request: an earlier background-thread version was
+    unreliable under Streamlit specifically -- submitting a second question
+    before the first question's thread finished scoring reliably killed that
+    first thread before it ever ran (Streamlit's rerun mechanism can inject
+    an async exception into the whole script thread's call stack, including
+    mid-way through starting a child thread), silently dropping entries from
+    the history. That's worse than the ~1-2s of added latency this costs.
+    Never raises -- a scoring failure must not break the chat flow."""
+    try:
+        scored = evaluate_live_answer(query, answer, chunks, refused)
+        observability.log_live_eval({
+            "query": query,
+            "answer": answer,
+            "refused": refused,
+            "rag_used": bool(chunks),
+            "num_chunks": len(chunks),
+            "sections_used": sorted({c.section for c in chunks}),
+            "tools_used": [t["name"] for t in tool_calls],
+            "latency": round(latency, 4),
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+            "prompt_variant": variant,
+            **scored,
+        })
+    except Exception:
+        pass
+
+
 def answer_question(
     query: str,
     history: list[dict] | None = None,
@@ -48,12 +83,20 @@ def answer_question(
     profile: dict | None = None,
     history_summary: str | None = None,
     prompt_variant: str | None = "A",
+    live_evaluate: bool = True,
 ) -> dict:
     """`prompt_variant` is "A" by default (the live app's normal, stable
     grounding prompt). Pass None to get Day 5/Session 3 Exercise 4's random
     50/50 A/B assignment instead -- used by eval/ab_test_grounding_prompt.py,
     not by the live Chat page, so real users never see randomly-varying
     chatbot behavior from an in-progress experiment.
+
+    `live_evaluate` scores this answer for the dashboard's "Live Chat
+    Evaluation" history (see _score_live_answer). Defaults to True for
+    the live Chat page; the eval suite, A/B script, and governance tests all
+    pass False -- they run their own dedicated scoring, and letting their
+    synthetic/curated questions into the *live* history would misrepresent
+    what real users actually asked.
     """
     start = time.perf_counter()
     variant = prompt_variant if prompt_variant is not None else random.choice(["A", "B"])
@@ -98,6 +141,12 @@ def answer_question(
         query=query, latency=latency, input_tokens=input_tokens, output_tokens=output_tokens,
         status="success", variant=variant,
     )
+
+    if live_evaluate:
+        _score_live_answer(
+            query, answer, chunks, is_refusal(answer), latency,
+            input_tokens, output_tokens, tool_calls, variant,
+        )
 
     return {
         "query": query,

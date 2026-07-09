@@ -8,6 +8,7 @@ point), which runs before this page is dispatched.
 """
 
 import json
+import statistics
 import sys
 from pathlib import Path
 
@@ -19,6 +20,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 import config
+import observability
 import theme
 
 REPORT_PATH = PROJECT_ROOT / "eval" / "report.json"
@@ -57,10 +59,121 @@ def status_hex(score: float) -> str:
     return CRITICAL
 
 
+theme.hero(
+    "📊", "Evaluation Dashboard",
+    "Live scoring of every real question asked in Chat, plus the curated 8-dimension batch suite",
+)
+
+# ============================================================= LIVE SECTION =
+header_col, refresh_col = st.columns([5, 1])
+header_col.subheader("🔴 Live Chat Evaluation")
+if refresh_col.button("🔄 Refresh", use_container_width=True):
+    st.rerun()
+st.caption(
+    "Every question asked on the Chat page is scored in the background by a separate judge model "
+    "(groundedness + relevance) and logged here — this updates as real usage happens, independent of "
+    "the batch suite below."
+)
+
+live_history = observability.get_live_eval_history()
+
+if not live_history:
+    st.info("No live chat questions scored yet — ask something on the **Chat** page, then come back here.", icon="💬")
+else:
+    scored = [e for e in live_history if e.get("verdict") in ("pass", "fail")]
+    errored = [e for e in live_history if e.get("verdict") == "error"]
+
+    rag_count = sum(1 for e in live_history if e.get("rag_used"))
+    tool_count = sum(1 for e in live_history if e.get("tools_used"))
+    refused_count = sum(1 for e in live_history if e.get("refused"))
+    live_pass_rate = (sum(1 for e in scored if e["verdict"] == "pass") / len(scored)) if scored else 0.0
+    avg_grounded = statistics.fmean(e["groundedness"] for e in scored) if scored else 0.0
+    avg_relevance = statistics.fmean(e["relevance"] for e in scored) if scored else 0.0
+
+    theme.kpi_row([
+        ("Live questions", len(live_history), VIOLET),
+        ("Live pass rate", f"{live_pass_rate*100:.0f}%", status_hex(live_pass_rate)),
+        ("RAG used", f"{rag_count}/{len(live_history)}", BLUE),
+        ("Avg groundedness", f"{avg_grounded:.2f}", status_hex(avg_grounded)),
+        ("Avg relevance", f"{avg_relevance:.2f}", status_hex(avg_relevance)),
+    ])
+    theme.chip_row([
+        f"🔎 RAG retrieval used: {rag_count}/{len(live_history)}",
+        f"🧮 Tool called: {tool_count}/{len(live_history)}",
+        f"🚫 Refused: {refused_count}/{len(live_history)}",
+    ] + ([f"⚠️ Scoring errors: {len(errored)}"] if errored else []))
+
+    if len(scored) >= 2:
+        trend_df = pd.DataFrame([
+            {"n": i + 1, "metric": "Groundedness", "score": e["groundedness"], "question": e["query"][:60]}
+            for i, e in enumerate(scored)
+        ] + [
+            {"n": i + 1, "metric": "Relevance", "score": e["relevance"], "question": e["query"][:60]}
+            for i, e in enumerate(scored)
+        ])
+        trend_hover = alt.selection_point(fields=["n", "metric"], on="pointerover", nearest=True, empty=False)
+        trend_line = alt.Chart(trend_df).mark_line(point=True, strokeWidth=2).encode(
+            x=alt.X("n:Q", title="Question # (chronological)", axis=alt.Axis(gridColor=GRIDLINE, tickMinStep=1)),
+            y=alt.Y("score:Q", title="Score", scale=alt.Scale(domain=[0, 1]), axis=alt.Axis(format=".0%", gridColor=GRIDLINE)),
+            color=alt.Color("metric:N", scale=alt.Scale(domain=["Groundedness", "Relevance"], range=[VIOLET, BLUE]), title=None),
+            opacity=alt.condition(trend_hover, alt.value(1.0), alt.value(0.75)),
+            tooltip=[alt.Tooltip("question:N", title="Question"), alt.Tooltip("metric:N"), alt.Tooltip("score:Q", format=".2f")],
+        ).add_params(trend_hover)
+        trend_threshold = alt.Chart(pd.DataFrame({"y": [0.7]})).mark_rule(
+            color=MUTED, strokeDash=[4, 3], strokeWidth=1.5
+        ).encode(y="y:Q")
+        trend_chart = (
+            (trend_line + trend_threshold)
+            .properties(height=220, background="transparent")
+            .configure_axis(labelColor=SECONDARY_INK, titleColor=SECONDARY_INK, domainColor=GRIDLINE, tickColor=GRIDLINE)
+            .configure_view(strokeWidth=0)
+            .configure_legend(labelColor=SECONDARY_INK, titleColor=SECONDARY_INK)
+        )
+        st.altair_chart(trend_chart, use_container_width=True)
+        st.caption("Dashed line = 0.7 pass threshold · hover a point for the question")
+
+    st.markdown("**Recent questions** (most recent first)")
+    recent = list(reversed(live_history))[:25]
+    live_filter = st.segmented_control(
+        "Filter", options=["All", "Pass", "Fail", "Refused"], default="All", label_visibility="collapsed", key="live_filter",
+    ) or "All"
+    for e in recent:
+        if live_filter == "Pass" and e.get("verdict") != "pass":
+            continue
+        if live_filter == "Fail" and e.get("verdict") != "fail":
+            continue
+        if live_filter == "Refused" and not e.get("refused"):
+            continue
+        icon = {"pass": "✅", "fail": "❌", "error": "⚠️"}.get(e.get("verdict"), "❔")
+        ts = e.get("timestamp", "")[:19].replace("T", " ")
+        with st.expander(f"{icon} {ts} — {e['query'] or '(empty input)'}"):
+            st.markdown(f"**Answer:** {e['answer']}")
+            flag_bits = [
+                f"RAG used: {'yes (' + str(e.get('num_chunks', 0)) + ' chunks)' if e.get('rag_used') else 'no'}",
+                f"Sections: {', '.join(e.get('sections_used') or []) or '—'}",
+                f"Tools called: {', '.join(e.get('tools_used') or []) or 'none'}",
+                f"Refused: {'yes' if e.get('refused') else 'no'}",
+                f"Latency: {e.get('latency', 0):.2f}s",
+                f"Prompt variant: {e.get('prompt_variant', '—')}",
+            ]
+            st.caption(" · ".join(flag_bits))
+            if e.get("verdict") == "error":
+                st.warning(f"Scoring failed: {e.get('reason')}", icon="⚠️")
+            else:
+                st.markdown(
+                    f"**Groundedness:** {e.get('groundedness'):.2f} · **Relevance:** {e.get('relevance'):.2f} "
+                    f"· **Verdict:** {e.get('verdict')}"
+                )
+                if e.get("reason"):
+                    st.caption(f"Judge reason: {e['reason']}")
+
+st.divider()
+
+# ============================================================ BATCH SECTION =
 if not REPORT_PATH.exists():
-    theme.hero("📊", "Evaluation Dashboard", "No report generated yet")
+    st.subheader("📋 Batch Eval Suite (8-Dimension Report)")
     st.warning(
-        "No evaluation report found yet. Generate one by running, in order:\n\n"
+        "No batch evaluation report found yet. Generate one by running, in order:\n\n"
         "```\n"
         "python eval/generate_test_cases.py\n"
         "python eval/run_tests.py\n"
@@ -74,7 +187,7 @@ if not REPORT_PATH.exists():
 report = json.loads(REPORT_PATH.read_text(encoding="utf-8"))
 
 theme.hero(
-    "📊", "Eight-Dimension Evaluation Report",
+    "📋", "Eight-Dimension Evaluation Report (Batch Suite)",
     "Test cases generated by an LLM · executed against the live chatbot · judged by a separate model",
 )
 

@@ -8,6 +8,7 @@ so the sidebar shows clean, explicitly-titled nav labels ("Chat",
 Run with: streamlit run app.py
 """
 
+
 import sys
 from pathlib import Path
 

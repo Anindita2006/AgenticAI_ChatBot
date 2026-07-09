@@ -66,7 +66,7 @@ def run_ab_test(repeats: int = 2) -> list[dict]:
     results = []
     for i, (variant, spec) in enumerate(zip(variants, runs)):
         print(f"[{i + 1}/{len(runs)}] variant {variant} -- {spec['question'][:60]!r}")
-        result = answer_question(spec["question"], prompt_variant=variant)
+        result = answer_question(spec["question"], prompt_variant=variant, live_evaluate=False)
         has_citation = bool(CITATION_PATTERN.search(result["answer"]))
         refused = result["refused"]
         refusal_correctness = None

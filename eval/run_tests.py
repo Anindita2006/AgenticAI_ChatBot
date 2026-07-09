@@ -27,7 +27,7 @@ def _serialize_chunks(chunks) -> list[dict]:
 
 
 def run_single_turn(case: dict) -> dict:
-    result = answer_question(case["question"])
+    result = answer_question(case["question"], live_evaluate=False)
     return {
         **case,
         "actual_answer": result["answer"],
@@ -43,12 +43,12 @@ def run_single_turn(case: dict) -> dict:
 
 
 def run_context_case(case: dict) -> dict:
-    turn1 = answer_question(case["question"])
+    turn1 = answer_question(case["question"], live_evaluate=False)
     history = [
         {"role": "user", "content": case["question"]},
         {"role": "assistant", "content": turn1["answer"]},
     ]
-    turn2 = answer_question(case["follow_up_question"], history=history)
+    turn2 = answer_question(case["follow_up_question"], history=history, live_evaluate=False)
     return {
         **case,
         "actual_answer": turn1["answer"],

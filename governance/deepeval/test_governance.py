@@ -63,7 +63,7 @@ TEST_CASES = [
 
 
 def _build_test_case(question: str) -> LLMTestCase:
-    result = answer_question(question)
+    result = answer_question(question, live_evaluate=False)
     chunk_texts = [c.text for c in result["retrieved_chunks"]] or ["(no matching context retrieved)"]
     return LLMTestCase(
         input=question,

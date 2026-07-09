@@ -53,11 +53,11 @@
     "id": "02-3",
     "dimension_code": "02",
     "dimension_name": "Quality",
-    "question": "Describe the mentorship opportunities available at BVRIT Hyderabad.",
+    "question": "Which companies has BVRIT Hyderabad partnered with for student mentorship and internship programs?",
     "follow_up_question": null,
     "complexity": null,
-    "expected_answer": "Mentorship programs are initiated with top MNCs like Microsoft, Amazon, and Qualcomm.",
-    "pass_fail_criteria": "All mentioned companies must be included as per the document."
+    "expected_answer": "Companies include Microsoft, Amazon, Qualcomm, Flipkart, Target, and Qlik (internship partners), plus HCL, Pi Square Technologies, and Mathworks (department-level industry collaborations elsewhere in the document).",
+    "pass_fail_criteria": "The answer must name Microsoft, Amazon, and Qualcomm as per the document; naming additional real partner companies found elsewhere in the document (e.g. HCL, Pi Square Technologies, Mathworks) is correct completeness, not a hallucination, and must not be marked as a failure."
   },
   {
     "id": "03-1",
@@ -173,11 +173,11 @@
     "id": "08-1",
     "dimension_code": "08",
     "dimension_name": "RAGAS",
-    "question": "What is the intake for the CSE (AI&ML) undergraduate program?",
+    "question": "What intake number does BVRIT Hyderabad state for its four B.Tech programmes EEE, ECE, CSE and CSE (AI&ML)?",
     "follow_up_question": null,
     "complexity": null,
-    "expected_answer": "The intake for CSE (AI&ML) is 660.",
-    "pass_fail_criteria": "The answer must match the exact intake number from the document."
+    "expected_answer": "BVRIT Hyderabad states an intake of 660 for its four B.Tech programmes EEE, ECE, CSE, and CSE (AI&ML).",
+    "pass_fail_criteria": "The answer must state 660 as given directly in the document for these 4 programmes, without adding any other programme's intake to it."
   },
   {
     "id": "08-2",

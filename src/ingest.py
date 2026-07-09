@@ -41,6 +41,12 @@ def build_chunks(pdf_path=config.KB_PDF_PATH) -> list[dict]:
     """
     sections = load_pdf_sections(pdf_path)
     chunks = []
+    seen_text: set[str] = set()  # data/knowledge_base.pdf repeats some boilerplate blocks
+                                  # near-verbatim across sections (e.g. the achievements list
+                                  # shows up under both "About" and "Vision & Mission") -- an
+                                  # exact-duplicate chunk in the index only crowds out a
+                                  # genuinely different chunk at retrieval time for zero benefit,
+                                  # so skip re-adding text already indexed under an earlier section.
     for section in sections:
         pieces = recursive_character_split(
             section.text,
@@ -48,6 +54,10 @@ def build_chunks(pdf_path=config.KB_PDF_PATH) -> list[dict]:
             chunk_overlap=config.CHUNK_OVERLAP,
         )
         for i, piece in enumerate(pieces):
+            normalized = piece.strip()
+            if normalized in seen_text:
+                continue
+            seen_text.add(normalized)
             chunks.append({
                 "id": f"{section.page}-{section.section[:30]}-{i}".replace(" ", "_"),
                 "text": piece,
