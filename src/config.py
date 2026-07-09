@@ -28,10 +28,10 @@ DATA_DIR = PROJECT_ROOT / "data"
 VECTORSTORE_DIR = PROJECT_ROOT / "vectorstore"
 EVAL_DIR = PROJECT_ROOT / "eval"
 
-KB_DOCX_PATH = DATA_DIR / "bvrith_college_info.docx"
-KB_SOURCE_NAME = "bvrith_college_info.docx"
+KB_PDF_PATH = DATA_DIR / "knowledge_base.pdf"
+KB_SOURCE_NAME = "knowledge_base.pdf"
 
-COLLECTION_NAME = "bvrith_college_info"
+COLLECTION_NAME = "bvrit_college_info"
 
 # Chunking defaults — see spec.md "Chunking strategy" for the justification.
 # 400/60 was chosen empirically over an initial 800/120: sections are short,
@@ -47,6 +47,11 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
 
 CHAT_MODEL = os.getenv("CHAT_MODEL", "openai/gpt-4o-mini")
+# Explicit cap, not the model's default max output (16384 for gpt-4o-mini): an
+# uncapped request has to be affordable at its full requested size even though a
+# cited FAQ answer never needs anywhere near that much, which caused spurious
+# "insufficient credits" 402s when the account balance was merely low, not empty.
+MAX_ANSWER_TOKENS = int(os.getenv("MAX_ANSWER_TOKENS", "1500"))
 JUDGE_MODEL = os.getenv("JUDGE_MODEL", "openai/gpt-4o")
 TEST_GEN_MODEL = os.getenv("TEST_GEN_MODEL", "openai/gpt-4o")
 

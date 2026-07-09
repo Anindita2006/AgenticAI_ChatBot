@@ -1,6 +1,6 @@
 """Phase 1 — Ingest and index.
 
-Loads the .docx knowledge base, splits it into chunks that respect the
+Loads the .pdf knowledge base, splits it into chunks that respect the
 document's section headings, embeds each chunk, and persists everything to a
 local ChromaDB collection with metadata (source, section, page, chunk_index)
 so retrieval can cite and filter by section later.
@@ -18,7 +18,7 @@ import chromadb
 
 import config
 from chunker import recursive_character_split
-from loader import load_docx_sections
+from loader import load_pdf_sections
 
 DOCUMENT_TITLE = "BVRIT Hyderabad College of Engineering for Women"
 
@@ -29,7 +29,7 @@ def _embed_batch(texts: list[str]) -> list[list[float]]:
     return [item.embedding for item in response.data]
 
 
-def build_chunks(docx_path=config.KB_DOCX_PATH) -> list[dict]:
+def build_chunks(pdf_path=config.KB_PDF_PATH) -> list[dict]:
     """Each chunk keeps two forms of its text: `text` (the clean original,
     used for citations and as LLM context) and `embed_text` (the same text
     prefixed with the document title + section name). Splitting a section into
@@ -39,7 +39,7 @@ def build_chunks(docx_path=config.KB_DOCX_PATH) -> list[dict]:
     Hyderabad" or "Placements" on its own. Embedding the prefixed version fixes
     that without polluting what's actually shown to the user or the LLM.
     """
-    sections = load_docx_sections(docx_path)
+    sections = load_pdf_sections(pdf_path)
     chunks = []
     for section in sections:
         pieces = recursive_character_split(
@@ -62,10 +62,10 @@ def build_chunks(docx_path=config.KB_DOCX_PATH) -> list[dict]:
     return chunks
 
 
-def ingest(docx_path=config.KB_DOCX_PATH, persist_dir=config.VECTORSTORE_DIR) -> int:
-    chunks = build_chunks(docx_path)
+def ingest(pdf_path=config.KB_PDF_PATH, persist_dir=config.VECTORSTORE_DIR) -> int:
+    chunks = build_chunks(pdf_path)
     if not chunks:
-        raise RuntimeError(f"No chunks produced from {docx_path} — check the document.")
+        raise RuntimeError(f"No chunks produced from {pdf_path} — check the document.")
 
     texts = [c["text"] for c in chunks]
     embeddings = _embed_batch([c["embed_text"] for c in chunks])

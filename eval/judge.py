@@ -17,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import config
+import observability
 
 RAW_RESULTS_PATH = Path(__file__).resolve().parent / "raw_results.json"
 OUTPUT_PATH = Path(__file__).resolve().parent / "judged_results.json"
@@ -89,7 +90,9 @@ def build_judge_messages(case: dict) -> list[dict]:
 
 def judge_case(case: dict) -> dict:
     client = config.get_chat_client()
-    response = client.chat.completions.create(
+    response = observability.logged_llm_call(
+        client,
+        call_type="judge",
         model=config.JUDGE_MODEL,
         messages=build_judge_messages(case),
         temperature=0,

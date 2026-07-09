@@ -1,3 +1,4 @@
+
 """Entry point.
 
 Sets page config and the shared theme once, then hands off to st.navigation

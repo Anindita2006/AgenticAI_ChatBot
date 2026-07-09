@@ -1,5 +1,6 @@
-python-docx==1.2.0
+pypdf==5.1.0
 reportlab==5.0.0
+tiktoken==0.13.0
 chromadb==1.5.9
 openai==2.44.0
 python-dotenv==1.2.2
@@ -8,7 +9,15 @@ pandas==3.0.3
 ragas==0.2.6
 datasets==5.0.0
 langchain-openai==1.3.3
+deepeval==4.0.7
 
 # --- After installing the above, run this once (known ragas/langchain-community
 # packaging conflict — see the script's docstring for why):
 #   python scripts/patch_ragas_vertexai_stub.py
+
+# --- deepeval pins click<8.4.0, but huggingface-hub (a chromadb/datasets
+# dependency) wants click>=8.4.0. Harmless in practice -- neither package's
+# CLI is what this project actually invokes -- but pip will print a resolver
+# warning either way. Giskard (governance/giskard_scan.py) is NOT installed
+# here: it has no distribution for this project's Python version (3.13); see
+# governance/requirements-giskard.txt for its separate-venv install.

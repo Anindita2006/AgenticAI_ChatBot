@@ -36,7 +36,6 @@ cp .env.example .env
 
 ```bash
 # 1. Build the knowledge base document (already committed, only needed if you edit it)
-python data/generate_kb_doc.py
 python data/generate_kb_pdf.py
 
 # 2. Index it into ChromaDB
@@ -61,16 +60,46 @@ Then open the **Evaluation Dashboard** page in the running Streamlit app to
 see the results rendered — summary stats, per-dimension pass/fail cards,
 failed-test drill-downs, and RAGAS metric bars.
 
+### Observability
+
+The Chat page's sidebar shows a live Session Stats panel (queries, latency,
+cost, tokens, errors) and warns in the chat area if a query breaches a
+latency/cost/error-rate threshold — see spec.md "Observability" for how
+logging, alerting, and input validation are wired in. To run the A/B test on
+the grounding prompt (needs a funded `OPENROUTER_API_KEY` — it makes 20 real
+chat completions):
+
+```bash
+python eval/ab_test_grounding_prompt.py   # 10 questions x 2, random A/B split, writes eval/ab_test_results.json
+```
+
+`eval/observability_incident_analysis.md` is the write-up for the
+simulated-log diagnosis exercise (two anomalies, root cause, fix, dashboard
+sketch).
+
+### Governance audit
+
+`governance/` audits the chatbot with Giskard, Promptfoo, and DeepEval — see
+`governance/README.md` for setup/run commands (Giskard needs a separate
+Python 3.9-3.12 venv; the other two need a funded `OPENROUTER_API_KEY`) and
+`governance/GOVERNANCE_REPORT.md` for the compiled findings and remediation
+plan. `spec.md`'s "Governance" section explains the design decisions (e.g.
+why the exercise brief's literal Promptfoo plugin names needed mapping to
+real IDs).
+
 ## Project layout
 
 ```
 data/               knowledge base doc + the script that generates it
-src/                ingestion, retrieval, grounded generation, RAG pipeline
+src/                ingestion, retrieval, grounded generation, RAG pipeline, observability
 app.py              Streamlit chat UI (main page)
-pages/              Streamlit Evaluation Dashboard page
-eval/               8-dimension + RAGAS evaluation suite and its outputs
+pages/              Streamlit Chat + Evaluation Dashboard pages
+eval/               8-dimension + RAGAS evaluation suite, A/B test script, and their outputs
+governance/         Giskard/Promptfoo/DeepEval governance audit (see governance/README.md)
 scripts/            one-time environment fixes (see spec.md)
 vectorstore/        ChromaDB persistence (gitignored, rebuilt via src/ingest.py)
+user_profiles/      persistent per-user memory (gitignored, see spec.md "Memory")
+logs/               LLM call + query logs (gitignored, see spec.md "Observability")
 ```
 
 ## Notes

@@ -16,15 +16,25 @@ _DEPARTMENT_HINTS = [
     ("computer science and engineering", "https://bvrithyderabad.edu.in/computer-science-and-engineering/about-the-department/"),
 ]
 
+# Keyed to the section headings produced by loader.py for data/knowledge_base.pdf
+# (15 top-level sections; 14.x/15.x are addendum/appendix subsections pulled from
+# assorted pages or, for 15.x, an unverified illustrative document with no real
+# page of its own -- both deliberately left unmapped so they fall back to DEFAULT_URL
+# rather than pointing to a guessed page).
 _SECTION_URLS = {
     "1. About BVRIT Hyderabad": "https://bvrithyderabad.edu.in/about-bvrith/",
-    "2. Departments": "https://bvrithyderabad.edu.in/computer-science-and-engineering/about-the-department/",
-    "3. Admissions": "https://bvrithyderabad.edu.in/admission/admission-process/",
-    "4. Fee Structure": "https://bvrithyderabad.edu.in/admission/fee-details/",
-    "5. Placements": "https://bvrithyderabad.edu.in/placement-details/",
-    "6. Campus & Facilities": "https://bvrithyderabad.edu.in/admission/hostel/",
-    "7. Faculty": "https://bvrithyderabad.edu.in/principal/",
-    "8. Contact": "https://bvrithyderabad.edu.in/contact-us/",
+    "2. Vision & Mission": "https://bvrithyderabad.edu.in/about-bvrith/",
+    "3. Management & Leadership": "https://bvrithyderabad.edu.in/principal/",
+    "4. Accreditations & Rankings": "https://bvrithyderabad.edu.in/about-bvrith/",
+    "5. Departments – UG Programs": "https://bvrithyderabad.edu.in/computer-science-and-engineering/about-the-department/",
+    "6. Admissions": "https://bvrithyderabad.edu.in/admission/admission-process/",
+    "7. Placements": "https://bvrithyderabad.edu.in/placement-details/",
+    "8. Campus Facilities": "https://bvrithyderabad.edu.in/admission/hostel/",
+    "9. Research & Development": "https://bvrithyderabad.edu.in/research/",
+    "10. Differentiators & Special Centers": "https://bvrithyderabad.edu.in/about-bvrith/",
+    "11. Student Activities & Clubs": "https://bvrithyderabad.edu.in/about-bvrith/",
+    "12. Alumni": "https://bvrithyderabad.edu.in/about-bvrith/",
+    "13. Contact Details": "https://bvrithyderabad.edu.in/contact-us/",
 }
 
 DEFAULT_URL = "https://bvrithyderabad.edu.in/"
@@ -36,6 +46,8 @@ GOOGLE_MAPS_URL = (
 
 _LOCATION_KEYWORDS = ["address", "located", "location", "bachupally", "nizampet", "rajiv gandhi nagar colony"]
 
+_DEPARTMENT_SECTION_PREFIXES = ("3. Management", "5. Departments")
+
 
 def location_mentioned(text: str) -> bool:
     lower = text.lower()
@@ -46,10 +58,10 @@ def resolve_source_url(section: str, text: str) -> str:
     """Best-effort: prefer a department-specific page if the chunk text
     names one, otherwise fall back to the section's default page."""
     lower = text.lower()
-    if section in ("2. Departments", "7. Faculty"):
+    if section.startswith(_DEPARTMENT_SECTION_PREFIXES):
         for hint, url in _DEPARTMENT_HINTS:
             if hint in lower:
                 return url
-        if section == "7. Faculty" and "principal" in lower:
+        if "principal" in lower:
             return "https://bvrithyderabad.edu.in/principal/"
     return _SECTION_URLS.get(section, DEFAULT_URL)

@@ -1,0 +1,18 @@
+# Install into a SEPARATE Python 3.9-3.12 venv -- Giskard has no distribution
+# for Python 3.13, which is what this project's main .venv (and requirements.txt)
+# uses. See giskard_scan.py's module docstring for setup steps.
+#
+#   python3.11 -m venv governance/.giskard_venv
+#   governance/.giskard_venv/Scripts/pip install -r governance/requirements-giskard.txt
+#
+# giskard_scan.py imports pipeline.py, which pulls in this project's full
+# runtime stack (chromadb for retrieval, tiktoken for summarization, etc.) --
+# not just giskard itself -- so this mirrors the main requirements.txt plus giskard.
+
+giskard
+pypdf==5.1.0
+tiktoken==0.13.0
+chromadb==1.5.9
+openai==2.44.0
+python-dotenv==1.2.2
+pandas

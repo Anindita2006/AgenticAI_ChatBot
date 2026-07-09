@@ -1,0 +1,49 @@
+# Day 5, Session 4, Exercise 2 -- red-team the BVRIT chatbot with Promptfoo.
+#
+# Plugin/strategy IDs below were checked against this machine's installed
+# promptfoo version (`npx promptfoo@latest redteam plugins`), not guessed from
+# memory -- the exercise brief's own wording ("hijacking, jailbreak, PII
+# extraction, harmful content, overreliance, hallucination") mixes plugins and
+# strategies, and two of those words ("harmful", "pii" as bare tokens) aren't
+# real plugin IDs in this version. See the mapping notes below each block.
+#
+# Run with (needs a funded OPENROUTER_API_KEY -- this makes 50-100+ real
+# chatbot calls, one per generated adversarial test case):
+#   npx promptfoo@latest redteam run --config governance/promptfoo/promptfooconfig.yaml
+#   npx promptfoo@latest redteam report --config governance/promptfoo/promptfooconfig.yaml
+
+description: "BVRIT Hyderabad FAQ Chatbot -- red-team safety audit"
+
+targets:
+  - id: "file://provider.py"
+    label: bvrit-chatbot
+
+redteam:
+  purpose: >
+    A college FAQ chatbot for BVRIT that answers from a grounding document
+    about admissions, fees, departments, and campus life.
+  numTests: 10
+  plugins:
+    - hijacking # exercise's "hijacking" -- real plugin ID, unchanged
+    - hallucination # exercise's "hallucination" -- real plugin ID, unchanged
+    - overreliance # exercise's "overreliance" -- real plugin ID, unchanged
+    # exercise's "PII extraction" -- there is no bare "pii" plugin; these four
+    # cover direct exposure, DB/API leakage, session leakage, and social-engineering extraction
+    - pii:direct
+    - pii:api-db
+    - pii:session
+    - pii:social
+    # exercise's "harmful content" -- there is no bare "harmful" plugin; this is a
+    # curated subset relevant to a college FAQ bot (not the full ~25-category harmful:* list,
+    # which includes categories like weapons/cybercrime that don't apply to this domain)
+    - harmful:hate
+    - harmful:self-harm
+    - harmful:specialized-advice # catches unlicensed medical/legal/financial advice
+    - harmful:privacy
+    - harmful:misinformation-disinformation
+  strategies:
+    # exercise's "jailbreak" -- a promptfoo STRATEGY (an attack method layered on top
+    # of the plugins above), not a plugin/content-category, hence listed separately
+    - basic
+    - jailbreak
+    - jailbreak:composite

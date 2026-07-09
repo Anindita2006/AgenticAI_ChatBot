@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import config
-from loader import load_docx_sections
+from loader import load_pdf_sections
 
 OUTPUT_PATH = Path(__file__).resolve().parent / "test_cases.json"
 
@@ -82,7 +82,7 @@ test cases for each dimension code, no more, no fewer."""
 
 
 def build_document_text() -> str:
-    sections = load_docx_sections(config.KB_DOCX_PATH)
+    sections = load_pdf_sections(config.KB_PDF_PATH)
     return "\n\n".join(f"[{s.section}, Page {s.page}]\n{s.text}" for s in sections)
 
 
